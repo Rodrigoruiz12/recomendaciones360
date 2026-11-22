@@ -16,6 +16,7 @@ import java.util.UUID;
  * - productos.eventos (clickstream de catalogo y detalle de producto)
  * - carrito.eventos (productos agregados/quitados y cupones)
  * - pagos.alertas (pagos aprobados y bloqueos antifraude de ms-pagos)
+ * Payloads malformados lanzan IllegalArgumentException y se enrutan automaticamente a <topico>.DLT.
  */
 @Component
 public class AnalyticsKafkaConsumer {
@@ -56,48 +57,50 @@ public class AnalyticsKafkaConsumer {
     }
 
     private void procesarMensaje(String mensajeJson, String topico, String tipoPorDefecto) {
+        Map<String, Object> data;
         try {
-            Map<String, Object> data = objectMapper.readValue(mensajeJson, new TypeReference<>() {});
-
-            EventoAnalitico evento = new EventoAnalitico();
-            evento.setEventoId(UUID.randomUUID().toString());
-            evento.setOrigenTopico(topico);
-            evento.setTipoEvento(str(data, "tipoEvento", tipoPorDefecto));
-            evento.setUsuarioId(str(data, "usuarioId", "anonimo"));
-            evento.setProductoNombre(str(data, "productoNombre", str(data, "nombre", null)));
-            evento.setCategoria(str(data, "categoria", null));
-            evento.setTimestamp(str(data, "timestamp", Instant.now().toString()));
-            evento.setMetadata(data);
-
-            Object prodId = data.get("productoId");
-            if (prodId != null) {
-                try {
-                    evento.setProductoId(Long.valueOf(prodId.toString()));
-                } catch (NumberFormatException ignored) {}
-            }
-
-            Object precio = data.get("precio");
-            if (precio != null) {
-                try {
-                    evento.setPrecio(Integer.valueOf(precio.toString()));
-                } catch (NumberFormatException ignored) {}
-            }
-
-            Object cantidad = data.get("cantidad");
-            if (cantidad != null) {
-                try {
-                    evento.setCantidad(Integer.valueOf(cantidad.toString()));
-                } catch (NumberFormatException ignored) {}
-            }
-
-            System.out.println("[KAFKA <- " + topico + "] Procesado evento " + evento.getTipoEvento()
-                    + " | usuario=" + evento.getUsuarioId()
-                    + " | producto=" + evento.getProductoNombre());
-
-            recomendacionService.registrarEvento(evento);
+            data = objectMapper.readValue(mensajeJson, new TypeReference<>() {});
         } catch (Exception e) {
-            System.err.println("[KAFKA <- " + topico + "] Error parseando mensaje: " + e.getMessage());
+            // Un JSON invalido va directo a <topico>.DLT via DefaultErrorHandler
+            throw new IllegalArgumentException("Payload no es JSON valido en " + topico + ": " + mensajeJson, e);
         }
+
+        EventoAnalitico evento = new EventoAnalitico();
+        evento.setEventoId(UUID.randomUUID().toString());
+        evento.setOrigenTopico(topico);
+        evento.setTipoEvento(str(data, "tipoEvento", tipoPorDefecto));
+        evento.setUsuarioId(str(data, "usuarioId", "anonimo"));
+        evento.setProductoNombre(str(data, "productoNombre", str(data, "nombre", null)));
+        evento.setCategoria(str(data, "categoria", null));
+        evento.setTimestamp(str(data, "timestamp", Instant.now().toString()));
+        evento.setMetadata(data);
+
+        Object prodId = data.get("productoId");
+        if (prodId != null) {
+            try {
+                evento.setProductoId(Long.valueOf(prodId.toString()));
+            } catch (NumberFormatException ignored) {}
+        }
+
+        Object precio = data.get("precio");
+        if (precio != null) {
+            try {
+                evento.setPrecio(Integer.valueOf(precio.toString()));
+            } catch (NumberFormatException ignored) {}
+        }
+
+        Object cantidad = data.get("cantidad");
+        if (cantidad != null) {
+            try {
+                evento.setCantidad(Integer.valueOf(cantidad.toString()));
+            } catch (NumberFormatException ignored) {}
+        }
+
+        System.out.println("[KAFKA <- " + topico + "] Procesado evento " + evento.getTipoEvento()
+                + " | usuario=" + evento.getUsuarioId()
+                + " | producto=" + evento.getProductoNombre());
+
+        recomendacionService.registrarEvento(evento);
     }
 
     private String str(Map<String, Object> map, String key, String fallback) {

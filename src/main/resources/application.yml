@@ -29,6 +29,8 @@ spring:
     listener:
       auto-startup: ${KAFKA_ENABLED:true}
       missing-topics-fatal: false
+    admin:
+      fail-fast: false
   cloud:
     azure:
       active-directory:
@@ -38,10 +40,13 @@ spring:
 app:
   kafka:
     enabled: ${KAFKA_ENABLED:true}
+    topic-partitions: ${KAFKA_TOPIC_PARTITIONS:3}
+    topic-replicas: ${KAFKA_TOPIC_REPLICAS:3}
     topics:
       productos: ${KAFKA_TOPIC_PRODUCTOS:productos.eventos}
       carrito: ${KAFKA_TOPIC_CARRITO:carrito.eventos}
       pagos: ${KAFKA_TOPIC_PAGOS:pagos.alertas}
+      auditoria: ${KAFKA_TOPIC_AUDITORIA:auditoria.eventos}
   dynamodb:
     enabled: ${DYNAMODB_ENABLED:false}
     region: ${AWS_REGION:us-east-1}

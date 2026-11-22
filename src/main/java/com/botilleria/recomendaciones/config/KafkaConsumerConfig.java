@@ -20,18 +20,32 @@ public class KafkaConsumerConfig {
     @Value("${app.kafka.topics.pagos:pagos.alertas}")
     private String topicPagos;
 
+    @Value("${app.kafka.topics.auditoria:auditoria.eventos}")
+    private String topicAuditoria;
+
+    @Value("${app.kafka.topic-partitions:3}")
+    private int partitions;
+
+    @Value("${app.kafka.topic-replicas:3}")
+    private int replicas;
+
     @Bean
     public NewTopic productosEventosTopic() {
-        return TopicBuilder.name(topicProductos).partitions(1).replicas(1).build();
+        return TopicBuilder.name(topicProductos).partitions(partitions).replicas(replicas).build();
     }
 
     @Bean
     public NewTopic carritoEventosTopic() {
-        return TopicBuilder.name(topicCarrito).partitions(1).replicas(1).build();
+        return TopicBuilder.name(topicCarrito).partitions(partitions).replicas(replicas).build();
     }
 
     @Bean
     public NewTopic pagosAlertasTopic() {
-        return TopicBuilder.name(topicPagos).partitions(1).replicas(1).build();
+        return TopicBuilder.name(topicPagos).partitions(partitions).replicas(replicas).build();
+    }
+
+    @Bean
+    public NewTopic auditoriaEventosTopic() {
+        return TopicBuilder.name(topicAuditoria).partitions(partitions).replicas(replicas).build();
     }
 }
