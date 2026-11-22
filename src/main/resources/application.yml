@@ -1,0 +1,78 @@
+server:
+  port: ${SERVER_PORT:8089}
+
+spring:
+  application:
+    name: ms-recomendaciones
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://aws-1-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require}
+    username: ${DB_USERNAME:postgres.luuftourpykupsbzusti}
+    password: ${DB_PASSWORD:yIhXrNMuw2LEISsy}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      idle-timeout: 30000
+      max-lifetime: 60000
+      connection-timeout: 20000
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:pedidos360-analytics-group}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        max.block.ms: 3000
+    listener:
+      auto-startup: ${KAFKA_ENABLED:true}
+      missing-topics-fatal: false
+  cloud:
+    azure:
+      active-directory:
+        enabled: false
+
+# Configuración de Kafka Topics, DynamoDB (+2 pts) y Seguridad JWT
+app:
+  kafka:
+    enabled: ${KAFKA_ENABLED:true}
+    topics:
+      productos: ${KAFKA_TOPIC_PRODUCTOS:productos.eventos}
+      carrito: ${KAFKA_TOPIC_CARRITO:carrito.eventos}
+      pagos: ${KAFKA_TOPIC_PAGOS:pagos.alertas}
+  dynamodb:
+    enabled: ${DYNAMODB_ENABLED:false}
+    region: ${AWS_REGION:us-east-1}
+    table-name: ${DYNAMODB_TABLE:pedidos360_eventos}
+  security:
+    jwt:
+      providers:
+        # Accesos Azure Entra ID
+        - name: azure
+          jwk-set-uri: https://login.microsoftonline.com/dd140621-3398-4bfe-805b-9c162df51706/discovery/v2.0/keys
+          issuers:
+            - https://login.microsoftonline.com/dd140621-3398-4bfe-805b-9c162df51706/v2.0
+            - https://sts.windows.net/dd140621-3398-4bfe-805b-9c162df51706/
+          audiences:
+            - 4a72e40f-1d5a-497a-b040-d2fa5acb61fd
+            - cb8b1711-d599-4a45-94d9-9251f15db61a
+            - api://cb8b1711-d599-4a45-94d9-9251f15db61a
+
+        # Acceso AWS Cognito
+        - name: cognito
+          jwk-set-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_EPwV5Yl4n/.well-known/jwks.json
+          issuers:
+            - https://cognito-idp.us-east-1.amazonaws.com/us-east-1_EPwV5Yl4n
+          audiences:
+            - 5qipn3rrr5j8uajmmsthq9i0cs
+          default-role: Usuario
+
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://52.205.162.211:8761/eureka/}
+  instance:
+    prefer-ip-address: true
