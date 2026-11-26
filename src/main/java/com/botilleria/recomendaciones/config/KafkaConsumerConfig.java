@@ -20,8 +20,14 @@ public class KafkaConsumerConfig {
     @Value("${app.kafka.topics.pagos:pagos.alertas}")
     private String topicPagos;
 
+    @Value("${app.kafka.topics.pagos-eventos:pagos.eventos}")
+    private String topicPagosEventos;
+
     @Value("${app.kafka.topics.auditoria:auditoria.eventos}")
     private String topicAuditoria;
+
+    @Value("${app.kafka.topics.recomendaciones:recomendaciones.eventos}")
+    private String topicRecomendaciones;
 
     @Value("${app.kafka.topic-partitions:3}")
     private int partitions;
@@ -45,7 +51,17 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
+    public NewTopic pagosEventosTopic() {
+        return TopicBuilder.name(topicPagosEventos).partitions(partitions).replicas(replicas).build();
+    }
+
+    @Bean
     public NewTopic auditoriaEventosTopic() {
         return TopicBuilder.name(topicAuditoria).partitions(partitions).replicas(replicas).build();
+    }
+
+    @Bean
+    public NewTopic recomendacionesEventosTopic() {
+        return TopicBuilder.name(topicRecomendaciones).partitions(partitions).replicas(replicas).build();
     }
 }

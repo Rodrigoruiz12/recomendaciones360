@@ -46,7 +46,9 @@ app:
       productos: ${KAFKA_TOPIC_PRODUCTOS:productos.eventos}
       carrito: ${KAFKA_TOPIC_CARRITO:carrito.eventos}
       pagos: ${KAFKA_TOPIC_PAGOS:pagos.alertas}
+      pagos-eventos: ${KAFKA_TOPIC_PAGOS_EVENTOS:pagos.eventos}
       auditoria: ${KAFKA_TOPIC_AUDITORIA:auditoria.eventos}
+      recomendaciones: ${KAFKA_TOPIC_RECOMENDACIONES:recomendaciones.eventos}
   dynamodb:
     enabled: ${DYNAMODB_ENABLED:false}
     region: ${AWS_REGION:us-east-1}

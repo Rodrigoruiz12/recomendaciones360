@@ -36,6 +36,9 @@ public class RecomendacionController {
     @Value("${app.kafka.topics.carrito:carrito.eventos}")
     private String topicCarrito;
 
+    @Value("${app.kafka.topics.recomendaciones:recomendaciones.eventos}")
+    private String topicRecomendaciones;
+
     public RecomendacionController(
             RecomendacionService recomendacionService,
             DynamoDbService dynamoDbService,
@@ -51,7 +54,7 @@ public class RecomendacionController {
         status.put("servicio", "ms-recomendaciones");
         status.put("estado", "UP");
         status.put("kafkaHabilitado", kafkaEnabled);
-        status.put("topicos", List.of(topicProductos, topicCarrito, "pagos.alertas"));
+        status.put("topicos", List.of(topicProductos, topicCarrito, "pagos.alertas", "pagos.eventos", topicRecomendaciones));
         status.put("dynamoDbActivo", dynamoDbService.isActivo());
         status.put("dynamoDbTabla", dynamoDbService.getTableName());
         status.put("websocketEndpoint", "/ws-analytics (topic: /topic/metricas)");
@@ -64,6 +67,8 @@ public class RecomendacionController {
             @PathVariable String usuarioId,
             @RequestParam(defaultValue = "4") int limite) {
         List<RecomendacionItem> recs = recomendacionService.obtenerRecomendacionesUsuario(usuarioId, limite);
+        publicarRecomendacionEnKafka(usuarioId, recs);
+
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("usuarioId", usuarioId);
         resp.put("total", recs.size());
@@ -73,7 +78,9 @@ public class RecomendacionController {
 
     @GetMapping("/populares")
     public List<RecomendacionItem> obtenerPopulares(@RequestParam(defaultValue = "4") int limite) {
-        return recomendacionService.obtenerPopulares(limite);
+        List<RecomendacionItem> recs = recomendacionService.obtenerPopulares(limite);
+        publicarRecomendacionEnKafka("__global__", recs);
+        return recs;
     }
 
     @GetMapping("/metricas")
@@ -121,5 +128,30 @@ public class RecomendacionController {
                 "topico", topico,
                 "evento", evento
         ));
+    }
+
+    private void publicarRecomendacionEnKafka(String usuarioId, List<RecomendacionItem> recs) {
+        if (!kafkaEnabled || kafkaTemplate == null) {
+            return;
+        }
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("tipoEvento", "RECOMENDACION_GENERADA");
+            payload.put("origen", "ms-recomendaciones");
+            payload.put("usuarioId", usuarioId);
+            payload.put("total", recs.size());
+            payload.put("productosRecomendados", recs.stream().map(r -> Map.of(
+                    "productoId", r.getProductoId(),
+                    "nombre", r.getNombre() != null ? r.getNombre() : "",
+                    "categoria", r.getCategoria() != null ? r.getCategoria() : "",
+                    "puntaje", r.getPuntaje(),
+                    "motivo", r.getMotivo() != null ? r.getMotivo() : ""
+            )).toList());
+            payload.put("timestamp", Instant.now().toString());
+
+            kafkaTemplate.send(topicRecomendaciones, usuarioId, objectMapper.writeValueAsString(payload));
+        } catch (Exception e) {
+            System.err.println("[ms-recomendaciones] Aviso Kafka en " + topicRecomendaciones + " (no bloqueante): " + e.getMessage());
+        }
     }
 }
